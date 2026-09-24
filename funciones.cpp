@@ -141,7 +141,7 @@ void menu(){
             string descomprimido= descromprimir_RLE_atexto(RLE);
             cout << "El texto original es: " << cadena << endl;
             cout << "El texto encriptado con RLE es: " << RLE << endl;
-            cout << "EL texto desincriptado es " << descomprimido << endl;
+            cout << "EL texto desincriptado es: " << descomprimido << endl;
 
             if (cadena != descomprimido){
                 cout << "Existe un error de desincriptacion " << endl;
@@ -150,10 +150,227 @@ void menu(){
 
         }
         break;
-    case 2: cout << "Has ingresado al metodo LZ78" << endl;
+    case 2:{
+        cout << "Has ingresado al metodo LZ78" << endl;
+        string entrada;
+        cout << "Ingrese el texto a comprimir: ";
+        cin.ignore();
+        getline(cin, entrada);
+
+        int longitud = entrada.length();
+        char* texto = new char[longitud];
+        for (int i = 0; i < longitud; i++){
+            texto[i] = entrada[i];
+        }
+
+        int* indices;
+        char* caracteres;
+        int cantidadPares;
+        comprimirLZ78(texto, longitud, &indices, &caracteres, &cantidadPares);
+
+        cout << "Pares (indice, caracter):" << endl;
+        for (int i = 0; i < cantidadPares; i++) {
+            char c;
+            if (caracteres[i] == '\0'){
+                c='0';
+            }
+            else{
+                c=caracteres[i];
+            }
+            cout << "(" << indices[i] << ", '" << c << "') ";
+        }
+        cout << endl;
+
+        char* textoReconstruido;
+        int longitudReconstruido;
+        descomprimirLZ78(indices, caracteres, cantidadPares, &textoReconstruido, &longitudReconstruido);
+
+        bool iguales = (longitudReconstruido == longitud);
+        if (iguales) {
+            for (int i = 0; i < longitud; i++) {
+                if (texto[i] != textoReconstruido[i]) {
+                    iguales = false;
+                    break;
+                }
+            }
+        }
+
+        cout << "Verificacion: " <<endl;
+        if (iguales){
+            cout << "OK" << endl;
+            cout << "El texto reconstruido es: " << textoReconstruido << endl;
+        }
+        else{
+            cout << "error en el proceso..." << endl;
+        }
+
+        delete[] texto;
+        delete[] indices;
+        delete[] caracteres;
+        delete[] textoReconstruido;
+        break;
+    }
+
     default:
+        cout << "Opcion no valida" << endl;
         break;
     }
 
 }
+
+
+
+void agregarEntradaDiccionario(int** prefijos, char** caracteres, int* cantidad, int* capacidad,int prefijo, char caracter){
+    if (*cantidad == *capacidad){
+        int nuevaCapacidad = (*capacidad == 0) ? 8 : (*capacidad) * 2;
+
+        int* nuevosPrefijos = new int[nuevaCapacidad];
+        char* nuevosCaracteres = new char[nuevaCapacidad];
+
+        for (int i = 0; i < *cantidad; i++){
+            nuevosPrefijos[i] = (*prefijos)[i];
+            nuevosCaracteres[i] = (*caracteres)[i];
+        }
+
+        delete[] *prefijos;
+        delete[] *caracteres;
+        *prefijos = nuevosPrefijos;
+        *caracteres = nuevosCaracteres;
+        *capacidad = nuevaCapacidad;
+    }
+
+    (*prefijos)[*cantidad] = prefijo;
+    (*caracteres)[*cantidad] = caracter;
+    (*cantidad)++;
+}
+
+int buscarHijo(const int* prefijos, const char* caracteres, int cantidad,
+               int prefijoBuscado, char caracterBuscado){
+    for (int i = 0; i < cantidad; i++){
+        if (prefijos[i] == prefijoBuscado && caracteres[i] == caracterBuscado){
+            return i + 1;
+        }
+    }
+    return -1;
+}
+
+
+void comprimirLZ78(const char* texto, int longitud,int** indicesSalida, char** caracteresSalida, int* cantidadPares){
+
+    int* prefijos = nullptr;
+    char* caracteresDicc = nullptr;
+    int cantidadDicc = 0;
+    int capacidadDicc = 0;
+
+    int capacidadSalida = 8;
+    int* indices = new int[capacidadSalida];
+    char* salidaCaracteres = new char[capacidadSalida];
+    int cantidad = 0;
+
+    int i = 0;
+    while (i < longitud){
+        int actual = 0;
+        int encontrado;
+
+        while (i < longitud){
+            encontrado = buscarHijo(prefijos, caracteresDicc, cantidadDicc, actual, texto[i]);
+            if (encontrado == -1) break;
+            actual = encontrado;
+            i++;
+        }
+
+        char caracterNuevo = (i < longitud) ? texto[i] : '\0';
+        if (i < longitud) i++;
+
+        if (cantidad == capacidadSalida){
+            capacidadSalida *= 2;
+            int* nuevosIndices = new int[capacidadSalida];
+            char* nuevosCaracteres = new char[capacidadSalida];
+            for (int k = 0; k < cantidad; k++){
+                nuevosIndices[k] = indices[k];
+                nuevosCaracteres[k] = salidaCaracteres[k];
+            }
+            delete[] indices;
+            delete[] salidaCaracteres;
+            indices = nuevosIndices;
+            salidaCaracteres = nuevosCaracteres;
+        }
+        indices[cantidad] = actual;
+        salidaCaracteres[cantidad] = caracterNuevo;
+        cantidad++;
+
+        if (caracterNuevo != '\0'){
+            agregarEntradaDiccionario(&prefijos, &caracteresDicc, &cantidadDicc, &capacidadDicc, actual, caracterNuevo);
+        }
+    }
+
+    delete[] prefijos;
+    delete[] caracteresDicc;
+
+    *indicesSalida = indices;
+    *caracteresSalida = salidaCaracteres;
+    *cantidadPares = cantidad;
+}
+
+
+
+void reconstruirCadena(const int* prefijos, const char* caracteres, int idx,char** resultado, int* longitud, int* capacidad) {
+    if (idx == 0) return;
+
+    reconstruirCadena(prefijos, caracteres, prefijos[idx-1], resultado, longitud, capacidad);
+
+
+    if (*longitud == *capacidad) {
+        *capacidad *= 2;
+        char* nuevo = new char[*capacidad];
+        for (int i = 0; i < *longitud; i++) nuevo[i] = (*resultado)[i];
+        delete[] *resultado;
+        *resultado = nuevo;
+    }
+    (*resultado)[(*longitud)++] = caracteres[idx-1];
+}
+
+
+void agregarCaracterResultado(char** resultado, int* longitud, int* capacidad, char c) {
+    if (*longitud == *capacidad) {
+        *capacidad *= 2;
+        char* nuevo = new char[*capacidad];
+        for (int i = 0; i < *longitud; i++) nuevo[i] = (*resultado)[i];
+        delete[] *resultado;
+        *resultado = nuevo;
+    }
+    (*resultado)[(*longitud)++] = c;
+}
+
+void descomprimirLZ78(const int* indices, const char* caracteresPares, int cantidadPares,char** textoSalida, int* longitudSalida){
+
+    int* prefijosDicc = nullptr;
+    char* caracteresDicc = nullptr;
+    int cantidadDicc = 0;
+    int capacidadDicc = 0;
+
+    int capacidadResultado = 16;
+    char* resultado = new char[capacidadResultado];
+    int longitudResultado = 0;
+
+    for (int p = 0; p < cantidadPares; p++){
+        int idx = indices[p];
+        char c = caracteresPares[p];
+
+        reconstruirCadena(prefijosDicc, caracteresDicc, idx, &resultado, &longitudResultado, &capacidadResultado);
+
+        if (c != '\0'){
+            agregarCaracterResultado(&resultado, &longitudResultado, &capacidadResultado, c);
+            agregarEntradaDiccionario(&prefijosDicc, &caracteresDicc, &cantidadDicc, &capacidadDicc, idx, c);
+        }
+    }
+
+    delete[] prefijosDicc;
+    delete[] caracteresDicc;
+
+    *textoSalida = resultado;
+    *longitudSalida = longitudResultado;
+}
+
+
 
