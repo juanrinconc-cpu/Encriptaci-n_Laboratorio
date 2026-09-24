@@ -89,136 +89,6 @@ void leer_archivo(){
 
 }
 
-void menu(){
-    int opcion;
-    do{
-        cout << "--- Bienvenido al menu del archivo de RLE y LZ78---" << endl;
-        cout << "Deseas encriptar algo? " << endl;
-        cout << "1.Si " << endl;
-        cout << "2.NO"  << endl;
-        cin >> opcion;
-        if (opcion < 1 || opcion > 2){
-            cout << "la opcion ingresada es invalida, intente de nuevo" << endl;
-        }
-    }
-    while (opcion <1 || opcion >2);
-    int caso;
-    do{
-        cout << "En que formato deseas encriptar?" << endl;
-        cout << "1.RLE" << endl;
-        cout << "2.LZ78"  << endl;
-        cin >> caso;
-        if (caso < 1 || caso > 2){
-            cout << "la opcion ingresada es invalida, intente de nuevo" << endl;
-        }
-
-    }
-    while (caso <1 || caso >2);
-
-    switch (caso) {
-    case 1: cout << "Has ingresado al metodo RLE" << endl;
-        int tipo;
-        do{
-            cout << "Que formato deseas encriptar " << endl;
-            cout << "1.Documento txt" << endl;
-            cout << "2. string añadidos desde la terminal" << endl;
-            cin >> tipo;
-            if (tipo < 1 || tipo > 2){
-                cout << "la opcion ingresada es invalida, intente de nuevo" << endl;
-            }
-
-        }
-        while (tipo <1 || tipo >2);
-
-        if (tipo == 1){
-            leer_archivo();
-        }
-        else{
-            string cadena;
-            cout << "ingrese la cadena de texto que desea encriptar" << endl;
-            cin >> cadena;
-            string RLE =comprimir_a_RLE(cadena);
-            string descomprimido= descromprimir_RLE_atexto(RLE);
-            cout << "El texto original es: " << cadena << endl;
-            cout << "El texto encriptado con RLE es: " << RLE << endl;
-            cout << "EL texto desincriptado es: " << descomprimido << endl;
-
-            if (cadena != descomprimido){
-                cout << "Existe un error de desincriptacion " << endl;
-            }
-
-
-        }
-        break;
-    case 2:{
-        cout << "Has ingresado al metodo LZ78" << endl;
-        string entrada;
-        cout << "Ingrese el texto a comprimir: ";
-        cin.ignore();
-        getline(cin, entrada);
-
-        int longitud = entrada.length();
-        char* texto = new char[longitud];
-        for (int i = 0; i < longitud; i++){
-            texto[i] = entrada[i];
-        }
-
-        int* indices;
-        char* caracteres;
-        int cantidadPares;
-        comprimirLZ78(texto, longitud, &indices, &caracteres, &cantidadPares);
-
-        cout << "Pares (indice, caracter):" << endl;
-        for (int i = 0; i < cantidadPares; i++) {
-            char c;
-            if (caracteres[i] == '\0'){
-                c='0';
-            }
-            else{
-                c=caracteres[i];
-            }
-            cout << "(" << indices[i] << ", '" << c << "') ";
-        }
-        cout << endl;
-
-        char* textoReconstruido;
-        int longitudReconstruido;
-        descomprimirLZ78(indices, caracteres, cantidadPares, &textoReconstruido, &longitudReconstruido);
-
-        bool iguales = (longitudReconstruido == longitud);
-        if (iguales) {
-            for (int i = 0; i < longitud; i++) {
-                if (texto[i] != textoReconstruido[i]) {
-                    iguales = false;
-                    break;
-                }
-            }
-        }
-
-        cout << "Verificacion: " <<endl;
-        if (iguales){
-            cout << "OK" << endl;
-            cout << "El texto reconstruido es: " << textoReconstruido << endl;
-        }
-        else{
-            cout << "error en el proceso..." << endl;
-        }
-
-        delete[] texto;
-        delete[] indices;
-        delete[] caracteres;
-        delete[] textoReconstruido;
-        break;
-    }
-
-    default:
-        cout << "Opcion no valida" << endl;
-        break;
-    }
-
-}
-
-
 
 void agregarEntradaDiccionario(int** prefijos, char** caracteres, int* cantidad, int* capacidad,int prefijo, char caracter){
     if (*cantidad == *capacidad){
@@ -244,8 +114,7 @@ void agregarEntradaDiccionario(int** prefijos, char** caracteres, int* cantidad,
     (*cantidad)++;
 }
 
-int buscarHijo(const int* prefijos, const char* caracteres, int cantidad,
-               int prefijoBuscado, char caracterBuscado){
+int buscarHijo(const int* prefijos, const char* caracteres, int cantidad,int prefijoBuscado, char caracterBuscado){
     for (int i = 0; i < cantidad; i++){
         if (prefijos[i] == prefijoBuscado && caracteres[i] == caracterBuscado){
             return i + 1;
@@ -372,5 +241,223 @@ void descomprimirLZ78(const int* indices, const char* caracteresPares, int canti
     *longitudSalida = longitudResultado;
 }
 
+
+unsigned char rotarIzquierda(unsigned char byte, int n) {
+    return (unsigned char)((byte << n) | (byte >> (8 - n)));
+}
+
+unsigned char rotarDerecha(unsigned char byte, int n) {
+    return (unsigned char)((byte >> n) | (byte << (8 - n)));
+}
+
+unsigned char encriptarByte(unsigned char byte, int n, unsigned char clave) {
+    unsigned char rotado = rotarIzquierda(byte, n);
+    return rotado ^ clave;
+}
+
+unsigned char desencriptarByte(unsigned char byteEncriptado, int n, unsigned char clave) {
+    unsigned char sinXor = byteEncriptado ^ clave;
+    return rotarDerecha(sinXor, n);
+}
+
+void encriptarDatos(unsigned char* datos, int longitud, int n, unsigned char clave) {
+    for (int i = 0; i < longitud; i++) {
+        datos[i] = encriptarByte(datos[i], n, clave);
+    }
+}
+
+void desencriptarDatos(unsigned char* datos, int longitud, int n, unsigned char clave) {
+    for (int i = 0; i < longitud; i++) {
+        datos[i] = desencriptarByte(datos[i], n, clave);
+    }
+}
+
+
+int solicitarnum() {
+    int n;
+    do {
+        cout << "Ingrese el valor de rotacion n (1 a 7): ";
+        cin >> n;
+        if (n <= 0 || n >= 8) {
+            cout << "Valor invalido, debe estar entre 1 y 7." << endl;
+        }
+    } while (n <= 0 || n >= 8);
+    return n;
+}
+
+void menu(){
+    int opcion;
+    do{
+        cout << "--- Bienvenido al menu del archivo de RLE y LZ78---" << endl;
+        cout << "Deseas encriptar algo? " << endl;
+        cout << "1.Si " << endl;
+        cout << "2.NO"  << endl;
+        try {
+            cin.clear();
+            cin.ignore(1000,'\n');
+            cin >> opcion;
+            if (opcion < 1 || opcion > 2){
+                cout << "la opcion ingresada es invalida, intente de nuevo" << endl;
+                throw out_of_range("La opcion debe ser 1 o 2 ");
+            }
+        } catch (const out_of_range& e) {
+            cout<< "Error" << e.what() << endl;
+        }
+    }
+    while (opcion <1 || opcion >2);
+    int caso;
+    do{
+        try{
+
+            cin.clear();
+            cin.ignore(1000,'\n');
+            cout << "En que formato deseas encriptar?" << endl;
+            cout << "1.RLE" << endl;
+            cout << "2.LZ78"  << endl;
+            cout << "3. Movimiento entre bits " << endl;
+            cin >> caso;
+            if (caso < 1 || caso > 3){
+                throw invalid_argument("El argumento ingresado es un caracter, intente de nuevo ");
+            }
+        }
+        catch(const invalid_argument& e){
+            cout << "Error" << e.what() << endl;
+        }
+
+    }
+    while (caso <1 || caso >3);
+
+    switch (caso) {
+    case 1: cout << "Has ingresado al metodo RLE" << endl;
+        int tipo;
+        do{
+            cout << "Que formato deseas encriptar " << endl;
+            cout << "1.Documento txt" << endl;
+            cout << "2. string añadidos desde la terminal" << endl;
+            cin >> tipo;
+            if (tipo < 1 || tipo > 2){
+                cout << "la opcion ingresada es invalida, intente de nuevo" << endl;
+            }
+
+        }
+        while (tipo <1 || tipo >2);
+
+        if (tipo == 1){
+            leer_archivo();
+        }
+        else{
+            string cadena;
+            cout << "ingrese la cadena de texto que desea encriptar" << endl;
+            cin >> cadena;
+            string RLE =comprimir_a_RLE(cadena);
+            string descomprimido= descromprimir_RLE_atexto(RLE);
+            cout << "El texto original es: " << cadena << endl;
+            cout << "El texto encriptado con RLE es: " << RLE << endl;
+            cout << "EL texto desincriptado es: " << descomprimido << endl;
+
+            if (cadena != descomprimido){
+                cout << "Existe un error de desincriptacion " << endl;
+            }
+
+
+        }
+        break;
+    case 2:{
+        cout << "Has ingresado al metodo LZ78" << endl;
+        string entrada;
+        cout << "Ingrese el texto a comprimir: ";
+        cin.ignore();
+        getline(cin, entrada);
+
+        int longitud = entrada.length();
+        char* texto = new char[longitud];
+        for (int i = 0; i < longitud; i++){
+            texto[i] = entrada[i];
+        }
+
+        int* indices;
+        char* caracteres;
+        int cantidadPares;
+        comprimirLZ78(texto, longitud, &indices, &caracteres, &cantidadPares);
+
+        cout << "Pares (indice, caracter):" << endl;
+        for (int i = 0; i < cantidadPares; i++) {
+            char c;
+            if (caracteres[i] == '\0'){
+                c='0';
+            }
+            else{
+                c=caracteres[i];
+            }
+            cout << "(" << indices[i] << ", '" << c << "') ";
+        }
+        cout << endl;
+
+        char* textoReconstruido;
+        int longitudReconstruido;
+        descomprimirLZ78(indices, caracteres, cantidadPares, &textoReconstruido, &longitudReconstruido);
+
+        bool iguales = (longitudReconstruido == longitud);
+        if (iguales) {
+            for (int i = 0; i < longitud; i++) {
+                if (texto[i] != textoReconstruido[i]) {
+                    iguales = false;
+                    break;
+                }
+            }
+        }
+
+        cout << "Verificacion: " <<endl;
+        if (iguales){
+            cout << "OK" << endl;
+            cout << "El texto reconstruido es: " << textoReconstruido << endl;
+        }
+        else{
+            cout << "error en el proceso..." << endl;
+        }
+
+        delete[] texto;
+        delete[] indices;
+        delete[] caracteres;
+        delete[] textoReconstruido;
+        break;
+    }
+
+    default:{
+        cout << "Movimiento entre bits" << endl;
+        unsigned char datos[] = {0xA5, 0x3C, 0xFF, 0x00, 0x7E};
+        int longitud = 5;
+
+        int n = solicitarnum();
+
+        int claveEntrada;
+        cout << "Ingrese la clave K (0 a 255): ";
+        cin >> claveEntrada;
+        unsigned char clave = (unsigned char)claveEntrada;
+
+        cout << "Original: ";
+        for (int i = 0; i < longitud; i++){
+            cout << (int)datos[i] << " ";
+        }
+        cout << endl;
+
+        encriptarDatos(datos, longitud, n, clave);
+        cout << "Encriptado: ";
+        for (int i = 0; i < longitud; i++){
+            cout << (int)datos[i] << " ";
+        }
+        cout << endl;
+
+        desencriptarDatos(datos, longitud, n, clave);
+        cout << "Desencriptado: ";
+        for (int i = 0; i < longitud; i++){
+            cout << (int)datos[i] << " ";
+        }
+        cout << endl;
+        break;
+        }
+
+    }
+}
 
 

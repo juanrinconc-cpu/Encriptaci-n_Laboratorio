@@ -11,5 +11,12 @@ void comprimirLZ78(const char* texto, int longitud,int** indicesSalida, char** c
 void agregarEntradaDiccionario(int** prefijos, char** caracteres, int* cantidad, int* capacidad,int prefijo, char caracter);
 void agregarCaracterResultado(char** resultado, int* longitud, int* capacidad, char c);
 void reconstruirCadena(const int* prefijos, const char* caracteres, int idx,char** resultado, int* longitud, int* capacidad);
+unsigned char rotarIzquierda(unsigned char byte, int n);
+unsigned char rotarDerecha(unsigned char byte, int n);
+unsigned char encriptarByte(unsigned char byte, int n, unsigned char clave);
+unsigned char desencriptarByte(unsigned char byteEncriptado, int n, unsigned char clave);
+void encriptarDatos(unsigned char* datos, int longitud, int n, unsigned char clave);
+void desencriptarDatos(unsigned char* datos, int longitud, int n, unsigned char clave);
+int solicitarnum();
 void menu();
 #endif // FUNCIONES_H
